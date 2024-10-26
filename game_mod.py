@@ -153,28 +153,14 @@ class GameMod:
             updated_at=parse_datetime(data.get('updated_at'))
         )
 
-    def add_release(self, file_name: str, sha1: str, version: str, download_url: Optional[str] = None,
-                    info_json: Optional[ReleaseInfoJson] = None, released_at: Optional[datetime] = None) -> None:
+    def add_release(self, release: Release) -> None:
         """
-        Adds a new Release to the GameMod object with only required fields and optional ones as needed.
+        Adds a new Release to the GameMod object.
 
         Args:
-            file_name (str): The name of the release file.
-            sha1 (str): The SHA-1 checksum of the release file.
-            version (str): The version of the release.
-            download_url (Optional[str], optional): URL for downloading the release. Defaults to None.
-            info_json (Optional[ReleaseInfoJson], optional): Additional release information. Defaults to None.
-            released_at (Optional[datetime], optional): Release date and time. Defaults to None.
+            release (Release): New release
         """
-        new_release = Release(
-            file_name=file_name,
-            sha1=sha1,
-            version=version,
-            download_url=download_url,
-            info_json=info_json,
-            released_at=released_at
-        )
-        self.releases.append(new_release)
+        self.releases.append(release)
 
     def get_latest_release(self) -> Optional[Release]:
         """
