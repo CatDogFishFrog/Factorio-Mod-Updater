@@ -4,7 +4,7 @@ import mod_downloader
 import factorio_web_api
 import sys
 import game_mod
-from factorio_web_api import fetch_and_parse_json
+from factorio_web_api import get_mod_from_web
 
 
 def main():

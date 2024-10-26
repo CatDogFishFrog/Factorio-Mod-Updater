@@ -3,10 +3,10 @@ import random
 import requests
 from requests.exceptions import HTTPError, ConnectionError, Timeout
 from concurrent.futures import ThreadPoolExecutor, as_completed
-from rich.console import Console
+from singleton_console import ConsoleSingleton
 
 # Setup console
-console = Console()
+console = ConsoleSingleton()
 
 
 class DownloadError(Exception):
@@ -20,9 +20,9 @@ class EmptyFileError(Exception):
 def _validate_mod_inputs(name: str, version: str, download_dir: str):
     """Validate the inputs for the mod download."""
     if not name or not version:
-        raise ValueError("[red]Mod name and version must be provided.[/red]")
+        raise ValueError("Mod name and version must be provided.")
     if not os.path.isdir(download_dir):
-        raise ValueError(f"[red]Invalid path: {download_dir}[/red]")
+        raise ValueError(f"Invalid path: {download_dir}")
 
 
 def _download_from_url(download_link: str, file_path: str):
@@ -55,17 +55,17 @@ def _download_mod(name: str, version: str, download_dir: str = "temp") -> str:
 
     download_link = f"https://mods-storage.re146.dev/{name}/{version}.zip?anticache={random.randint(1, 1000000000)}"
     file_path = os.path.join(download_dir, f"{name}_{version}.zip")
-    console.print(f"[yellow]Starting download for {name} ({version})...[/yellow]")
+    console.print_info(f"Starting download for {name} ({version})...")
 
     try:
         return _download_from_url(download_link, file_path)
     except Exception as first_attempt_error:
-        console.print(f"[red]Error during the first attempt for {name}: {first_attempt_error}[/red]")
-        console.print(f"[yellow]Retrying download for {name}...[/yellow]")
+        console.print_error(f"Error during the first attempt for {name}: {first_attempt_error}")
+        console.print_warning(f"Retrying download for {name}...")
         try:
             return _download_from_url(download_link, file_path)
         except Exception as second_attempt_error:
-            raise DownloadError(f"[red]Failed to download {name} after two attempts: {second_attempt_error}[/red]")
+            raise DownloadError(f"Failed to download {name} after two attempts: {second_attempt_error}")
 
 
 def download_mods(mod_list: list, download_dir: str = "temp"):
@@ -81,5 +81,6 @@ def download_mods(mod_list: list, download_dir: str = "temp"):
             mod_name = future_to_mod[future]
             try:
                 future.result()  # Raises any exception encountered during the download
+                console.print_success(f"Successfully downloaded {mod_name}")
             except Exception as exc:
-                console.print(f"[red]Failed to download {mod_name}: {exc}[/red]")
+                console.print_error(f"Failed to download {mod_name}: {exc}")

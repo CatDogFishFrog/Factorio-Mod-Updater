@@ -5,6 +5,13 @@ import re
 from typing import List, Optional
 from concurrent.futures import ThreadPoolExecutor, as_completed
 from game_mod import GameMod, Release
+from singleton_console import ConsoleSingleton
+
+console = ConsoleSingleton()
+
+class ModProcessingError(Exception):
+    """Custom exception for errors during processing individual mod files."""
+    pass
 
 
 class FileHasher:
@@ -20,22 +27,22 @@ class FileHasher:
             str: The SHA-1 hash of the file content.
 
         Raises:
-            ValueError: If there is an error reading the file.
+            ModProcessingError: If there is an error reading the file.
         """
         sha1 = hashlib.sha1()
         try:
             with open(file_path, 'rb') as f:
                 while True:
-                    data = f.read(65536)  # Read in 64k chunks
+                    data = f.read(65536)
                     if not data:
                         break
                     sha1.update(data)
         except IOError as error:
-            raise ValueError(f"Error reading file {file_path}: {error.strerror}")
+            raise ModProcessingError(f"Error reading file {file_path}: {error.strerror}")
         return sha1.hexdigest()
 
 
-class ModFileManager:
+class ModFileRecognizer:
     STANDARD_MODS = {"base", "elevated-rails", "quality", "space-age"}
 
     @staticmethod
@@ -63,7 +70,7 @@ class ModFileManager:
         with open(mod_list_path, "r", encoding="utf-8") as f:
             mod_list_data = json.load(f)
 
-        ignored_mods_set = set(ignore_mods).union(ModFileManager.STANDARD_MODS)
+        ignored_mods_set = set(ignore_mods).union(ModFileRecognizer.STANDARD_MODS)
         mods = [
             GameMod(name=mod["name"])
             for mod in mod_list_data.get("mods", [])
@@ -85,7 +92,7 @@ class ModFileManager:
             List[str]: List of file paths matching the mod name pattern.
 
         Raises:
-            ValueError: If the directory does not exist.
+            ModProcessingError: If the directory does not exist.
         """
         pattern = re.compile(rf"{mod_name}_\d+\.\d+\.\d+\.zip")
         try:
@@ -94,7 +101,7 @@ class ModFileManager:
                 for f in os.listdir(mods_dir_path) if pattern.match(f)
             ]
         except FileNotFoundError:
-            raise ValueError(f"Directory {mods_dir_path} does not exist.")
+            raise ModProcessingError(f"Directory {mods_dir_path} does not exist.")
 
     @staticmethod
     def process_mod_file(mod: GameMod, mods_dir_path: str) -> GameMod:
@@ -109,9 +116,9 @@ class ModFileManager:
             GameMod: Updated GameMod instance with associated file data and SHA-1 hashes.
 
         Raises:
-            ValueError: If there is an error in processing file hashes.
+            ModProcessingError: If there is an error in processing file hashes.
         """
-        mod_zip_files = ModFileManager.find_mod_files(mod.name, mods_dir_path)
+        mod_zip_files = ModFileRecognizer.find_mod_files(mod.name, mods_dir_path)
 
         for mod_file_path in mod_zip_files:
             mod_file_name = os.path.basename(mod_file_path)
@@ -137,20 +144,24 @@ class ModFileManager:
 
         Returns:
             List[GameMod]: Updated list of GameMod instances with additional file information.
+
+        Raises:
+            ValueError: If there is an error during concurrent processing of mod files.
         """
         try:
             with ThreadPoolExecutor() as executor:
-                future_to_mod = {executor.submit(ModFileManager.process_mod_file, mod, mods_dir_path): mod for mod in mods}
+                future_to_mod = {executor.submit(ModFileRecognizer.process_mod_file, mod, mods_dir_path): mod for mod in mods}
 
                 for future in as_completed(future_to_mod):
                     mod = future_to_mod[future]
                     try:
                         future.result()  # Raise any exceptions occurred during processing
+                    except ModProcessingError as e:
+                        console.print_error(f"Error processing mod '{mod.name}': {e}")
                     except Exception as e:
-                        print(f"An error occurred while processing mod '{mod.name}': {e}")
-
+                        console.print_error(f"Unexpected error with mod '{mod.name}': {e}")
         except Exception as e:
-            raise ValueError(f"An error occurred while processing mod files: {e}")
+            raise ValueError("A critical error occurred during mod processing.") from e
 
         return mods
 
@@ -165,6 +176,15 @@ def get_mods_list(mods_dir_path: str, ignore_mods: Optional[List[str]] = None) -
 
     Returns:
         List[GameMod]: List of GameMod instances with file and hash data added.
+
+    Raises:
+        ValueError: If parsing the mod list fails or a critical error occurs.
     """
-    mods = ModFileManager.parse_mod_list_json(mods_dir_path, ignore_mods)
-    return ModFileManager.process_mod_files(mods, mods_dir_path)
+    try:
+        console.print_info("Reading mod list from mod-list.json...")
+        mods = ModFileRecognizer.parse_mod_list_json(mods_dir_path, ignore_mods)
+        console.print_info("Processing mods to add file and hash data...")
+        return ModFileRecognizer.process_mod_files(mods, mods_dir_path)
+    except ValueError as e:
+        console.print_error("Critical error while retrieving mods list.")
+        raise e

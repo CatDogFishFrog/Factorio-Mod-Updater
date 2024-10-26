@@ -170,7 +170,6 @@ class GameMod:
         Returns:
             Optional[Release]: The latest release based on version and release date.
         """
-        # Спочатку сортуємо за версією, а потім за датою, якщо вона є
         sorted_releases = sorted(
             self.releases,
             key=lambda r: (version.parse(r.version), r.released_at or datetime.min),
