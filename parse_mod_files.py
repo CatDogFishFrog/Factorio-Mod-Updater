@@ -10,7 +10,18 @@ from game_mod import GameMod, Release
 class FileHasher:
     @staticmethod
     def calculate_sha1(file_path: str) -> str:
-        """Calculates SHA-1 hash of a file."""
+        """
+        Calculates the SHA-1 hash of the specified file.
+
+        Args:
+            file_path (str): Path to the file.
+
+        Returns:
+            str: The SHA-1 hash of the file content.
+
+        Raises:
+            ValueError: If there is an error reading the file.
+        """
         sha1 = hashlib.sha1()
         try:
             with open(file_path, 'rb') as f:
@@ -30,7 +41,17 @@ class ModFileManager:
     @staticmethod
     def parse_mod_list_json(mods_dir_path: str, ignore_mods: Optional[List[str]] = None) -> List[GameMod]:
         """
-        Reads the mod-list.json file, excludes ignored mods, and returns a list of GameMod instances.
+        Reads and parses the 'mod-list.json' file, excluding ignored mods, and returns a list of GameMod instances.
+
+        Args:
+            mods_dir_path (str): Path to the directory containing 'mod-list.json'.
+            ignore_mods (Optional[List[str]]): List of mods to ignore. Defaults to None.
+
+        Returns:
+            List[GameMod]: A list of GameMod instances without ignored mods.
+
+        Raises:
+            ValueError: If 'mod-list.json' does not exist or is improperly formatted.
         """
         if ignore_mods is None:
             ignore_mods = []
@@ -54,7 +75,17 @@ class ModFileManager:
     @staticmethod
     def find_mod_files(mod_name: str, mods_dir_path: str) -> List[str]:
         """
-        Finds all files in the mods directory that match the mod name pattern {mod_name}_*.zip.
+        Finds all files in the mods directory that match the pattern '{mod_name}_<version>.zip'.
+
+        Args:
+            mod_name (str): Name of the mod to search for.
+            mods_dir_path (str): Path to the directory containing mod files.
+
+        Returns:
+            List[str]: List of file paths matching the mod name pattern.
+
+        Raises:
+            ValueError: If the directory does not exist.
         """
         pattern = re.compile(rf"{mod_name}_\d+\.\d+\.\d+\.zip")
         try:
@@ -68,13 +99,23 @@ class ModFileManager:
     @staticmethod
     def process_mod_file(mod: GameMod, mods_dir_path: str) -> GameMod:
         """
-        Process a single GameMod instance, find its files, and calculate SHA-1 hashes.
+        Processes a GameMod instance to locate its files, extract version info, and calculate SHA-1 hashes.
+
+        Args:
+            mod (GameMod): An instance of GameMod to process.
+            mods_dir_path (str): Path to the directory containing mod files.
+
+        Returns:
+            GameMod: Updated GameMod instance with associated file data and SHA-1 hashes.
+
+        Raises:
+            ValueError: If there is an error in processing file hashes.
         """
         mod_zip_files = ModFileManager.find_mod_files(mod.name, mods_dir_path)
 
         for mod_file_path in mod_zip_files:
             mod_file_name = os.path.basename(mod_file_path)
-            mod_version = re.search(rf"{re.escape(mod.name)}_(\d+\.\d+\.\d+)\.zip", mod_file_name).group(1)
+            mod_version = re.search(rf"{mod.name}_(\d+\.\d+\.\d+)\.zip", mod_file_name).group(1)
             mod_sha1 = FileHasher.calculate_sha1(mod_file_path)
             release = Release(
                 file_name=mod_file_name,
@@ -88,7 +129,14 @@ class ModFileManager:
     @staticmethod
     def process_mod_files(mods: List[GameMod], mods_dir_path: str) -> List[GameMod]:
         """
-        Finds mod archives and calculates their SHA-1 hash using multithreading.
+        Processes multiple GameMod instances using multithreading, finding and hashing their associated files.
+
+        Args:
+            mods (List[GameMod]): List of GameMod instances to process.
+            mods_dir_path (str): Path to the directory containing mod files.
+
+        Returns:
+            List[GameMod]: Updated list of GameMod instances with additional file information.
         """
         try:
             with ThreadPoolExecutor() as executor:
@@ -97,7 +145,7 @@ class ModFileManager:
                 for future in as_completed(future_to_mod):
                     mod = future_to_mod[future]
                     try:
-                        future.result()  # Raises any exception if occurred
+                        future.result()  # Raise any exceptions occurred during processing
                     except Exception as e:
                         print(f"An error occurred while processing mod '{mod.name}': {e}")
 
@@ -109,7 +157,14 @@ class ModFileManager:
 
 def get_mods_list(mods_dir_path: str, ignore_mods: Optional[List[str]] = None) -> List[GameMod]:
     """
-    Main function to get the list of mods with additional file information and SHA-1 hash.
+    Retrieves the list of mods with additional file and SHA-1 hash information.
+
+    Args:
+        mods_dir_path (str): Path to the directory containing 'mod-list.json' and mod archives.
+        ignore_mods (Optional[List[str]]): List of mods to ignore. Defaults to None.
+
+    Returns:
+        List[GameMod]: List of GameMod instances with file and hash data added.
     """
     mods = ModFileManager.parse_mod_list_json(mods_dir_path, ignore_mods)
     return ModFileManager.process_mod_files(mods, mods_dir_path)
