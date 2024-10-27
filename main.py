@@ -1,10 +1,6 @@
-import parse_mod_files
-import game_mod
-import mod_downloader
-import factorio_web_api
+from mod_processor import parse_mod_files
+from models import game_mod
 import sys
-import game_mod
-from factorio_web_api import get_mod_from_web
 
 
 def main():
@@ -16,8 +12,8 @@ def main():
         # mod = game_mod.GameMod.from_json(fetch_and_parse_json("https://mods.factorio.com/api/mods/alien-biomes/full"))
         # print("dfdf")
         mod_list = parse_mod_files.get_mods_list("C:\\Games\\Factorio_2.0.8\\mods")
+        mod_list = game_mod.GameMod.sync_mod_list_with_remote(mod_list)
 
-        latest_release = mod_list[35].get_latest_release()
 
         print("done")
 

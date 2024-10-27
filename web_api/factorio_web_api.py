@@ -2,8 +2,8 @@ import json
 import requests
 from typing import List, Optional
 from concurrent.futures import ThreadPoolExecutor, as_completed
-from game_mod import GameMod
-from singleton_console import ConsoleSingleton
+from models.game_mod import GameMod
+from utils.singleton_console import ConsoleSingleton
 
 console = ConsoleSingleton()
 

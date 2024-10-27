@@ -3,7 +3,7 @@ import random
 import requests
 from requests.exceptions import HTTPError, ConnectionError, Timeout
 from concurrent.futures import ThreadPoolExecutor, as_completed
-from singleton_console import ConsoleSingleton
+from utils.singleton_console import ConsoleSingleton
 
 # Setup console
 console = ConsoleSingleton()

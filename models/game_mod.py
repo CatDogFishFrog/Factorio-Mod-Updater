@@ -1,59 +1,10 @@
-import re
-from typing import List, Optional, Dict, Any
+from typing import List, Optional
 from dataclasses import dataclass, field
 from datetime import datetime
 from packaging import version
+from concurrent.futures import ThreadPoolExecutor, as_completed
 
-
-def clean_line(line: str) -> str:
-    """Cleans a line by removing leading dashes and unnecessary spaces."""
-    return re.sub(r'^\s*-\s*', '', line).strip()
-
-
-def parse_version_block(block: tuple) -> Dict[str, Any]:
-    """Parses a single version block into a dictionary."""
-    _, date, changes = block
-    change_lines = changes.strip().split("\n")
-    change_dict = {}
-    current_section = None
-
-    for line in change_lines:
-        line = line.strip()
-        if not line:
-            continue
-        if re.match(r"^[A-Za-z ]+:", line):  # Detect section headers like "Info:"
-            current_section = line[:-1]  # Забираємо двокрапку
-            change_dict[current_section] = []
-        elif current_section:
-            change_dict[current_section].append(clean_line(line))
-
-    return {
-        "date": date.strip(),
-        "changes": change_dict
-    }
-
-
-def parse_changelog_content(changelog_content: str) -> List[Dict[str, Any]]:
-    """
-    Parses the given changelog content and returns its content as a list of dictionaries.
-
-    Args:
-        changelog_content (str): The full content of the changelog file as a string.
-
-    Returns:
-        List[Dict[str, Any]]: Parsed changelog content.
-    """
-    version_blocks = re.findall(r"Version:\s([0-9.]+)\nDate:\s(.+)\n((?:.|\n)*?)\n-{10,}", changelog_content,
-                                re.MULTILINE)
-
-    return [parse_version_block(block) for block in version_blocks]
-
-
-@dataclass
-class ChangelogEntry:
-    version: str
-    date: str
-    changes: Dict[str, List[str]]
+from models.changelog import ChangelogEntry, parse_changelog
 
 
 @dataclass
@@ -109,15 +60,6 @@ class GameMod:
     title: Optional[str] = None
     updated_at: Optional[datetime] = None
 
-
-    @staticmethod
-    def parse_changelog(changelog_str: str) -> List[ChangelogEntry]:
-        """Parses the changelog string into a list of ChangelogEntry."""
-        parsed_changelog = parse_changelog_content(changelog_str)
-        return [ChangelogEntry(version=block['date'], date=block['date'], changes=block['changes']) for block in
-                parsed_changelog]
-
-
     @staticmethod
     def from_json(data: dict) -> 'GameMod':
         def parse_datetime(date_str: Optional[str]) -> Optional[datetime]:
@@ -126,7 +68,7 @@ class GameMod:
         return GameMod(
             name=data['name'],
             category=data.get('category'),
-            changelog=GameMod.parse_changelog(data.get('changelog', '')),
+            changelog=parse_changelog(data.get('changelog', '')),
             created_at=parse_datetime(data.get('created_at')),
             description=data.get('description'),
             downloads_count=data.get('downloads_count'),
@@ -191,3 +133,57 @@ class GameMod:
             if release.sha1 == sha1:
                 return release.version
         return None
+
+    def compare_with_remote(self, remote_mod: 'GameMod') -> Optional['GameMod']:
+        """
+        Compares the current mod's releases with those from the remote mod.
+        Filters releases in the remote mod, retaining only newer ones than the latest installed release.
+
+        Args:
+            remote_mod (GameMod): The remote mod instance containing latest release data.
+
+        Returns:
+            Optional[GameMod]: The original remote_mod with newer releases or None if no newer releases are found.
+        """
+        latest_local_release = self.get_latest_release()
+
+        remote_mod.releases = [
+            release for release in remote_mod.releases
+            if (latest_local_release is None or version.parse(release.version) > version.parse(
+                latest_local_release.version))
+        ]
+
+        return remote_mod if remote_mod.releases else None
+
+    @staticmethod
+    def sync_mod_list_with_remote(local_mods: List['GameMod']) -> List['GameMod']:
+        """
+        Synchronizes a list of locally installed mods with the latest versions available remotely.
+        Checks each mod for newer releases in a multithreaded way, and returns a list of mods
+        with only newer releases available.
+
+        Args:
+            local_mods (List[GameMod]): List of locally installed mods.
+
+        Returns:
+            List[GameMod]: List of mods with updated release information.
+        """
+        from web_api.factorio_web_api import get_mod_from_web
+
+        updated_mods = []
+
+        with ThreadPoolExecutor() as executor:
+            future_to_mod = {executor.submit(get_mod_from_web, mod): mod for mod in local_mods}
+
+            for future in as_completed(future_to_mod):
+                local_mod = future_to_mod[future]
+                try:
+                    remote_mod = future.result()
+                    if remote_mod:
+                        updated_mod = local_mod.compare_with_remote(remote_mod)
+                        if updated_mod:
+                            updated_mods.append(updated_mod)
+                except Exception as e:
+                    print(f"Error syncing mod '{local_mod.name}': {e}")
+
+        return updated_mods
