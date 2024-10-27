@@ -3,7 +3,7 @@ import random
 import requests
 from requests.exceptions import HTTPError, ConnectionError, Timeout
 from concurrent.futures import ThreadPoolExecutor, as_completed
-
+from typing import List, Tuple
 from exceptions.exceptions import DownloadError, EmptyFileError
 from models.game_mod import GameMod
 from utils.file_hasher import FileHasher
@@ -26,9 +26,6 @@ class ModDownloader:
     def __init__(self, download_dir: str):
         self.download_dir = download_dir
         os.makedirs(download_dir, exist_ok=True)
-
-
-
 
     def download_mod(self, name: str, version: str) -> str:
         """Initiate download and handle retries."""
@@ -79,16 +76,22 @@ class ModDownloadManager:
         self.download_dir = download_dir
         self.downloader = ModDownloader(download_dir)
 
-    def downloqd_latest_release(self, game_mod: GameMod):
-        lstest_release = game_mod.get_latest_release()
-        self.downloader.download_mod(game_mod.name, lstest_release.version)
+    def download_latest_release(self, game_mod: GameMod):
+        latest_release = game_mod.get_latest_release()
+        if latest_release is None:
+            raise DownloadError(f"No releases found for mod '{game_mod.name}'.")
 
-        if FileHasher.calculate_sha1(os.path.join(self.download_dir, lstest_release.file_name)) != lstest_release.sha1:
-            raise DownloadError("Downloaded file hash does not match the expected SHA-1 hash.")
+        file_path = self.downloader.download_mod(game_mod.name, latest_release.version)
 
+        # Verify downloaded file integrity
+        downloaded_sha1 = FileHasher.calculate_sha1(file_path)
+        if downloaded_sha1 != latest_release.sha1:
+            raise DownloadError(f"Downloaded file hash does not match the expected SHA-1 hash for {game_mod.name}.")
 
+        console.print_success(f"{game_mod.name} v{latest_release.version} downloaded and verified successfully.")
+        return file_path
 
-    def download_mods(self, mod_list: list):
+    def download_mods(self, mod_list: List[Tuple[str, str]]):
         """Download multiple mods concurrently with error handling."""
         with ThreadPoolExecutor() as executor:
             future_to_mod = {executor.submit(self.downloader.download_mod, name, version): name

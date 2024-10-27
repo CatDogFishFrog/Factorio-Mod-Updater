@@ -2,7 +2,6 @@ from typing import List, Optional
 from dataclasses import dataclass, field
 from datetime import datetime
 from packaging import version
-from concurrent.futures import ThreadPoolExecutor, as_completed
 
 from models.changelog import ChangelogEntry
 
@@ -133,57 +132,3 @@ class GameMod:
             if release.sha1 == sha1:
                 return release.version
         return None
-
-    def compare_with_remote(self, remote_mod: 'GameMod') -> Optional['GameMod']:
-        """
-        Compares the current mod's releases with those from the remote mod.
-        Filters releases in the remote mod, retaining only newer ones than the latest installed release.
-
-        Args:
-            remote_mod (GameMod): The remote mod instance containing latest release data.
-
-        Returns:
-            Optional[GameMod]: The original remote_mod with newer releases or None if no newer releases are found.
-        """
-        latest_local_release = self.get_latest_release()
-
-        remote_mod.releases = [
-            release for release in remote_mod.releases
-            if (latest_local_release is None or version.parse(release.version) > version.parse(
-                latest_local_release.version))
-        ]
-
-        return remote_mod if remote_mod.releases else None
-
-    @staticmethod
-    def sync_mod_list_with_remote(local_mods: List['GameMod']) -> List['GameMod']:
-        """
-        Synchronizes a list of locally installed mods with the latest versions available remotely.
-        Checks each mod for newer releases in a multithreaded way, and returns a list of mods
-        with only newer releases available.
-
-        Args:
-            local_mods (List[GameMod]): List of locally installed mods.
-
-        Returns:
-            List[GameMod]: List of mods with updated release information.
-        """
-        from web_api.factorio_web_api import get_mod_from_web
-
-        updated_mods = []
-
-        with ThreadPoolExecutor() as executor:
-            future_to_mod = {executor.submit(get_mod_from_web, mod): mod for mod in local_mods}
-
-            for future in as_completed(future_to_mod):
-                local_mod = future_to_mod[future]
-                try:
-                    remote_mod = future.result()
-                    if remote_mod:
-                        updated_mod = local_mod.compare_with_remote(remote_mod)
-                        if updated_mod:
-                            updated_mods.append(updated_mod)
-                except Exception as e:
-                    print(f"Error syncing mod '{local_mod.name}': {e}")
-
-        return updated_mods
