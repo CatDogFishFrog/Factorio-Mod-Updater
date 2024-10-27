@@ -1,6 +1,6 @@
 import re
 from dataclasses import dataclass
-from typing import Dict, List, Any
+from typing import List
 
 @dataclass
 class ChangelogEntry:
@@ -17,7 +17,7 @@ def split_changelog(changelog_content: str) -> List[str]:
 def parse_version_block(blocks) -> ChangelogEntry | None:
     """Parses a single version block into a dictionary."""
 
-    regex_pattern = r"Version:\s*([0-9.]+)\s*\n\Date:\s*(.*?)\s*\n  ([.\s\S]*)"
+    regex_pattern = r"Version:\s*([0-9.]+)\s*\n\Date:\s*(.*?)\s*\n {2}([\s\S]*)"
 
     match = re.search(regex_pattern, blocks, re.MULTILINE)
     if not match:
