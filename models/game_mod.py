@@ -4,7 +4,7 @@ from datetime import datetime
 from packaging import version
 from concurrent.futures import ThreadPoolExecutor, as_completed
 
-from models.changelog import ChangelogEntry, parse_changelog
+from models.changelog import ChangelogEntry
 
 
 @dataclass
@@ -68,7 +68,7 @@ class GameMod:
         return GameMod(
             name=data['name'],
             category=data.get('category'),
-            changelog=parse_changelog(data.get('changelog', '')),
+            changelog=ChangelogEntry.from_changelog_file(data.get('changelog', '')),
             created_at=parse_datetime(data.get('created_at')),
             description=data.get('description'),
             downloads_count=data.get('downloads_count'),

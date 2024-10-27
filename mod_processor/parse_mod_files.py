@@ -1,46 +1,15 @@
-import hashlib
 import json
 import os
 import re
 from typing import List, Optional
 from concurrent.futures import ThreadPoolExecutor, as_completed
+
+from exceptions.exceptions import ModProcessingError
 from models.game_mod import GameMod, Release
+from utils.file_hasher import FileHasher
 from utils.singleton_console import ConsoleSingleton
 
 console = ConsoleSingleton()
-
-class ModProcessingError(Exception):
-    """Custom exception for errors during processing individual mod files."""
-    pass
-
-
-class FileHasher:
-    @staticmethod
-    def calculate_sha1(file_path: str) -> str:
-        """
-        Calculates the SHA-1 hash of the specified file.
-
-        Args:
-            file_path (str): Path to the file.
-
-        Returns:
-            str: The SHA-1 hash of the file content.
-
-        Raises:
-            ModProcessingError: If there is an error reading the file.
-        """
-        sha1 = hashlib.sha1()
-        try:
-            with open(file_path, 'rb') as f:
-                while True:
-                    data = f.read(65536)
-                    if not data:
-                        break
-                    sha1.update(data)
-        except IOError as error:
-            raise ModProcessingError(f"Error reading file {file_path}: {error.strerror}")
-        return sha1.hexdigest()
-
 
 class ModFileRecognizer:
     STANDARD_MODS = {"base", "elevated-rails", "quality", "space-age"}
