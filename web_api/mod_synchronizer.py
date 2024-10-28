@@ -19,7 +19,7 @@ class ModSynchronizer:
         self.api_client = api_client
 
     @staticmethod
-    def compare_with_remote(local_mod: GameMod, remote_mod: GameMod) -> Optional[GameMod]:
+    def find_new_releases_from_remote(local_mod: GameMod, remote_mod: GameMod) -> Optional[GameMod]:
         """
         Compares releases between a local mod and its remote counterpart, retaining only newer releases.
 
@@ -41,7 +41,7 @@ class ModSynchronizer:
 
         return remote_mod if remote_mod.releases else None
 
-    def sync_mod_list_with_remote(self, local_mods: List[GameMod]) -> List[GameMod]:
+    def find_updates_of_mods_list(self, local_mods: List[GameMod]) -> List[GameMod]:
         """
         Synchronizes a list of locally installed mods with the latest versions available remotely.
         Uses multithreading to check each mod for newer releases concurrently.
@@ -65,11 +65,11 @@ class ModSynchronizer:
                     remote_mod = future.result()
                     if remote_mod:
                         # Compare and update if newer releases exist
-                        updated_mod = self.compare_with_remote(local_mod, remote_mod)
+                        updated_mod = self.find_new_releases_from_remote(local_mod, remote_mod)
                         if updated_mod:
                             updated_mods.append(updated_mod)
-                            console.print_success(f"Updates found for mod '{local_mod.name}'")
+                            console.success(f"Updates found for mod '{local_mod.name}'")
                 except Exception as e:
-                    console.print_error(f"Error syncing mod '{local_mod.name}': {e}")
+                    console.error(f"Error syncing mod '{local_mod.name}': {e}")
 
         return updated_mods

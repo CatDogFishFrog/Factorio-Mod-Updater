@@ -126,9 +126,9 @@ class ModFileRecognizer:
                     try:
                         future.result()  # Raise any exceptions occurred during processing
                     except ModProcessingError as e:
-                        console.print_error(f"Error processing mod '{mod.name}': {e}")
+                        console.error(f"Error processing mod '{mod.name}': {e}")
                     except Exception as e:
-                        console.print_error(f"Unexpected error with mod '{mod.name}': {e}")
+                        console.error(f"Unexpected error with mod '{mod.name}': {e}")
         except Exception as e:
             raise ValueError("A critical error occurred during mod processing.") from e
 
@@ -150,10 +150,10 @@ def get_mods_list(mods_dir_path: str, ignore_mods: Optional[List[str]] = None) -
         ValueError: If parsing the mod list fails or a critical error occurs.
     """
     try:
-        console.print_info("Reading mod list from mod-list.json...")
+        console.info("Reading mod list from mod-list.json...")
         mods = ModFileRecognizer.parse_mod_list_json(mods_dir_path, ignore_mods)
-        console.print_info("Processing mods to add file and hash data...")
+        console.info("Processing mods to add file and hash data...")
         return ModFileRecognizer.process_mod_files(mods, mods_dir_path)
     except ValueError as e:
-        console.print_error("Critical error while retrieving mods list.")
+        console.error("Critical error while retrieving mods list.")
         raise e

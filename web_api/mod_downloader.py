@@ -3,7 +3,7 @@ import random
 import requests
 from requests.exceptions import HTTPError, ConnectionError, Timeout
 from concurrent.futures import ThreadPoolExecutor, as_completed
-from typing import List
+from typing import List, Optional
 from exceptions.exceptions import DownloadError, EmptyFileError
 from models.game_mod import GameMod, Release
 from utils.file_hasher import FileHasher
@@ -11,7 +11,6 @@ from utils.singleton_console import ConsoleSingleton
 
 # Console setup
 console = ConsoleSingleton()
-
 
 class ModValidator:
     """
@@ -32,7 +31,6 @@ class ModValidator:
         if not os.path.isdir(download_dir):
             raise ValueError(f"Invalid path: {download_dir}")
 
-
 class ModDownloader:
     """
     Handles the downloading of individual mods with retry and validation mechanisms.
@@ -41,6 +39,26 @@ class ModDownloader:
     def __init__(self, download_dir: str):
         self.download_dir = download_dir
         os.makedirs(download_dir, exist_ok=True)
+
+    @staticmethod
+    def get_file_size_in_mb(download_link: str) -> Optional[float]:
+        """
+        Fetches file size from the download link header without downloading the content.
+
+        Args:
+            download_link (str): The URL of the file.
+
+        Returns:
+            Optional[float]: File size in MB if available; None if not.
+        """
+        try:
+            head_response = requests.head(download_link, timeout=10)
+            head_response.raise_for_status()
+            file_size = int(head_response.headers.get('Content-Length', 0))
+            return file_size / (1024 * 1024) if file_size > 0 else None
+        except Exception as e:
+            console.warning(f"Could not retrieve file size: {e}")
+            return None
 
     def download_mod(self, name: str, version: str) -> str:
         """
@@ -60,7 +78,13 @@ class ModDownloader:
         download_link = self._generate_download_link(name, version)
         file_path = os.path.join(self.download_dir, f"{name}_{version}.zip")
 
-        console.info(f"Initiating download for {name} v{version}")
+        # Retrieve and log the file size if available
+        file_size_mb = self.get_file_size_in_mb(download_link)
+        if file_size_mb:
+            console.info(f"Starting download for {name} v{version} (Size: {file_size_mb:.2f} MB)")
+        else:
+            console.info(f"Starting download for {name} v{version} (Size: unknown)")
+
         try:
             return self._download_with_retry(download_link, file_path)
         except DownloadError as e:
@@ -123,7 +147,6 @@ class ModDownloader:
             for chunk in response.iter_content(chunk_size=8192):
                 file.write(chunk)
         console.debug(f"File saved at {file_path} with size {os.path.getsize(file_path)} bytes")
-
 
 class ModDownloadManager:
     """
@@ -204,7 +227,6 @@ class ModDownloadManager:
         Raises:
             DownloadError: If download or hash verification fails.
         """
-        console.info(f"Starting download for {game_mod.name} v{release.version} (Size: {release.size} bytes)")
         file_path = self.downloader.download_mod(game_mod.name, release.version)
 
         downloaded_sha1 = FileHasher.calculate_sha1(file_path)

@@ -28,15 +28,15 @@ class FactorioAPIClient:
             response.raise_for_status()
             return GameMod.from_json(response.json())
         except requests.exceptions.HTTPError as e:
-            console.print_error(f"HTTP error while fetching JSON from {url}: {e}")
+            console.error(f"HTTP error while fetching JSON from {url}: {e}")
         except requests.exceptions.ConnectionError as e:
-            console.print_error(f"Connection error while accessing {url}: {e}")
+            console.error(f"Connection error while accessing {url}: {e}")
         except requests.exceptions.Timeout as e:
-            console.print_error(f"Request timed out while accessing {url}: {e}")
+            console.error(f"Request timed out while accessing {url}: {e}")
         except requests.exceptions.RequestException as e:
-            console.print_error(f"Unexpected error with the request to {url}: {e}")
+            console.error(f"Unexpected error with the request to {url}: {e}")
         except json.JSONDecodeError as e:
-            console.print_error(f"Error decoding JSON from {url}: {e}")
+            console.error(f"Error decoding JSON from {url}: {e}")
         return None
 
     @classmethod
@@ -59,6 +59,6 @@ class FactorioAPIClient:
                     mod_data = future.result()
                     results.append(mod_data)
                 except Exception as e:
-                    console.print_error(f"Error occurred while processing mod '{mod.name}': {e}")
+                    console.error(f"Error occurred while processing mod '{mod.name}': {e}")
                     results.append(None)
         return results
