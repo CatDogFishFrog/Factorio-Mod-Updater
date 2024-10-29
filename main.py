@@ -1,4 +1,6 @@
 import os
+from multiprocessing.managers import Value
+from site import abs_paths
 from typing import List
 import configparser
 from mod_processor import parse_mod_files
@@ -9,13 +11,13 @@ from web_api.mod_synchronizer import ModSynchronizer
 from utils.singleton_console import ConsoleSingleton
 
 # Console configuration
-console = ConsoleSingleton(log_level="DEBUG")
+console = ConsoleSingleton(log_level="info")
 
 # Default paths and settings
 SETTINGS_FILE_PATH = "settings.ini"
 DEFAULT_SETTINGS = {
     'Logging': {'level': 'INFO'},
-    'Paths': {'mods': 'C:\\Games\\Factorio_2.0.8\\mods'},
+    'Paths': {'mods': ''},
     'IgnoreList': {'ignore_list_file_path': 'ignore_mods.txt'}
 }
 
@@ -91,6 +93,9 @@ def main():
     console.set_log_level(log_level)
 
     mods_folder_path = config.get("Paths", "mods", fallback=DEFAULT_SETTINGS['Paths']['mods'])
+    if not os.path.exists(mods_folder_path):
+        console.error(f"Mods directory does not exist: {os.path.abspath(mods_folder_path)}")
+        return
     ignore_list_file_path = config.get("IgnoreList", "ignore_list_file_path",
                                        fallback=DEFAULT_SETTINGS['IgnoreList']['ignore_list_file_path'])
 
@@ -101,7 +106,12 @@ def main():
 
     # Load ignore list and installed mods
     ignore_list = load_ignore_list(ignore_list_file_path)
-    installed_mods = find_installed_mods(mods_folder_path, ignore_list)
+
+    try:
+        installed_mods = find_installed_mods(mods_folder_path, ignore_list)
+    except ValueError as err:
+        console.error(f"Error loading installed mods: {err}")
+        return
 
     # Check for available updates
     available_updates = synchronizer.find_updates_of_mods_list(installed_mods)

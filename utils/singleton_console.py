@@ -24,7 +24,7 @@ class ConsoleSingleton(metaclass=SingletonMeta):
         "CRITICAL": 50
     }
 
-    def __init__(self, log_level: str = "WARNING"):
+    def __init__(self, log_level: str = "INFO"):
         self.console = Console()
         self.log_level = self.LOG_LEVELS.get(log_level.upper(), 30)  # Default to WARNING level
 
@@ -44,7 +44,7 @@ class ConsoleSingleton(metaclass=SingletonMeta):
         # Only log messages with level >= the set log level
         if level_value >= self.log_level:
             color = self._get_color_for_level(level)
-            self.console.print(f"[{color}]{level}: {message}[/{color}]")
+            self.console.print(f"[{color}]{f"{level}: " if level_value > 27 else ""}{message}[/{color}]")
 
     def set_log_level(self, log_level: str) -> None:
         """Sets the log level for the console output."""

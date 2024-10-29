@@ -68,7 +68,7 @@ class ModSynchronizer:
                         updated_mod = self.find_new_releases_from_remote(local_mod, remote_mod)
                         if updated_mod:
                             updated_mods.append(updated_mod)
-                            console.success(f"Updates found for mod '{local_mod.name}'")
+                            console.success(f"Updates found for mod '{local_mod.name}' {local_mod.get_latest_release().version} -> {updated_mod.get_latest_release().version} for Factorio {updated_mod.get_latest_release().info_json.factorio_version}")
                 except Exception as e:
                     console.error(f"Error syncing mod '{local_mod.name}': {e}")
 

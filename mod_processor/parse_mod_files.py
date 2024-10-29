@@ -155,5 +155,5 @@ def get_mods_list(mods_dir_path: str, ignore_mods: Optional[List[str]] = None) -
         console.info("Processing mods to add file and hash data...")
         return ModFileRecognizer.process_mod_files(mods, mods_dir_path)
     except ValueError as e:
-        console.error("Critical error while retrieving mods list.")
+        console.error("Error while retrieving mods list.")
         raise e
