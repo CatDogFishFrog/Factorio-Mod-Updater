@@ -209,7 +209,6 @@ class ModDownloadManager:
                 mod_name = futures[future]
                 try:
                     future.result()
-                    console.success(f"Successfully downloaded {mod_name}")
                 except DownloadError as exc:
                     console.error(f"Failed to download {mod_name}: {exc}")
 

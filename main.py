@@ -1,6 +1,4 @@
 import os
-from multiprocessing.managers import Value
-from site import abs_paths
 from typing import List
 import configparser
 from mod_processor import parse_mod_files
@@ -125,7 +123,6 @@ def main():
     ignore_list = load_ignore_list(ignore_list_file_path)
     # Start the download process
     start_download(available_updates, ignore_list, downloader)
-    console.success("Process completed.")
 
 
 if __name__ == '__main__':
