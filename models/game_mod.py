@@ -1,7 +1,7 @@
 from typing import List, Optional
 from dataclasses import dataclass, field
 from datetime import datetime
-from packaging import version
+from utils.date_parser import parse_datetime
 
 from models.changelog import ChangelogEntry
 
@@ -61,8 +61,6 @@ class GameMod:
 
     @staticmethod
     def from_json(data: dict) -> 'GameMod':
-        def parse_datetime(date_str: Optional[str]) -> Optional[datetime]:
-            return datetime.fromisoformat(date_str.replace("Z", "+00:00")) if date_str else None
 
         return GameMod(
             name=data['name'],
@@ -105,20 +103,18 @@ class GameMod:
 
     def get_latest_release(self) -> Optional[Release]:
         """
-        Returns the release with the highest version. If multiple releases have the same version,
-        selects the one with the latest release date (if available).
+        Returns the release with the latest release date (if available).
 
         Returns:
-            Optional[Release]: The latest release based on version and release date.
+            Optional[Release]: The latest release based on release date.
         """
-        sorted_releases = sorted(
-            self.releases,
-            key=lambda r: (version.parse(r.version), r.released_at or datetime.min),
-            reverse=True
-        )
-        return sorted_releases[0] if sorted_releases else None
+        if not self.releases:
+            return None
+        # Sort releases by release date, descending
+        latest_release = max(self.releases, key=lambda r: r.released_at or datetime.min)
+        return latest_release
 
-    def find_release_by_sha1(self, sha1: str) -> Optional[str]:
+    def find_release_by_sha1(self, sha1: str) -> Optional[Release]:
         """
         Finds the release version number by the given sha1 hash.
 
@@ -130,5 +126,5 @@ class GameMod:
         """
         for release in self.releases:
             if release.sha1 == sha1:
-                return release.version
+                return release
         return None
